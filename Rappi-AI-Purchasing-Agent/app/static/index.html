@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Purchasing Agent</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<header><div><span class="eyebrow">RAPPI TURBO · PROCUREMENT</span><h1>AI Purchasing Agent</h1><p>Investigate → decide → validate → approve → execute → verify.</p></div><div id="health" class="pill">Checking…</div></header>
+<main>
+<section class="panel scenario-panel"><div class="panel-head"><div><h2>Decision workspace</h2><p>Run an assignment scenario end-to-end.</p></div><select id="scenario"></select><button id="run" class="primary">Run agent</button></div><div id="scenario-desc" class="desc"></div></section>
+<section id="result" class="hidden">
+<div class="decision-card"><div><span class="label">Agent decision</span><div id="decision" class="decision">—</div></div><div id="mode" class="pill">—</div></div>
+<div class="stepbar"><span class="active">1 Investigate</span><span class="active">2 Decide</span><span class="active">3 Validate</span><span id="approval-step">4 Human approval</span><span>5 Execute</span><span>6 Verify</span></div>
+<div class="grid"><div class="panel"><h3>Decision rationale</h3><ul id="rationale"></ul><div class="action-box"><span class="label">Proposed action</span><p id="action"></p></div></div><div class="panel"><h3>Evidence & constraints</h3><div id="evidence" class="evidence"></div></div></div>
+<div class="panel" id="llm-panel"><div class="panel-head"><div><h3>LLM decision trace</h3><p>The model investigates with tools; deterministic guardrails remain the execution boundary.</p></div></div><div class="grid"><div><h3>LLM proposal</h3><pre id="llm-proposal">Not available in deterministic mode.</pre></div><div><h3>Guardrail result</h3><pre id="llm-guardrail">Not available in deterministic mode.</pre></div></div></div><div class="panel"><div class="panel-head"><div><h3>Validation gate</h3><p>Deterministic guardrails are checked again at execution time. Human approval is mandatory.</p></div><button id="approve" class="primary">Approve & create PO</button></div><pre id="validation"></pre><label id="failure-wrap" class="failure hidden"><input type="checkbox" id="simulate-failure"> Simulate ERP quantity mismatch (demo feedback loop)</label></div>
+<div class="panel"><h3>Agent tool trace</h3><div id="trace" class="trace"></div></div>
+<div id="post-result" class="panel hidden"><div class="panel-head"><div><h3>Post-action validation</h3><p id="post-feedback"></p></div><span id="post-status" class="pill">—</span></div><pre id="post-validation"></pre></div>
+</section>
+<section class="panel"><div class="panel-head"><div><h2>Audit trail</h2><p>Every analysis, execution and escalation is recorded.</p></div><button id="refresh">Refresh</button></div><div id="audit" class="audit"></div></section>
+</main><script src="/static/app.js?v=20260914-llm1"></script></body></html>
