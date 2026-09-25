@@ -1,0 +1,17 @@
+﻿langgraph
+langchain-openai
+langchain-mcp-adapters
+mcp
+python-dotenv
+httpx
+beautifulsoup4
+trafilatura
+tavily-python
+pytest
+chromadb
+langchain-text-splitters
+pypdf
+sentence-transformers
+langchain-groq
+fastapi
+uvicorn[standard]

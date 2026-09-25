@@ -1,0 +1,255 @@
+VCTI LANGGRAPH MCP MULTI-TOOL AGENT - IMPLEMENTATION DETAILS
+=============================================================
+
+1. PROJECT PURPOSE
+------------------
+This project is a multi-tool AI agent built with LangGraph and MCP
+(Model Context Protocol). The agent receives a user question, decides whether
+it needs a tool, calls the required tool or tools, and then gives a final answer.
+
+
+2. TECHNOLOGY STACK
+-------------------
+- Python: backend language
+- LangGraph: agent workflow and routing
+- MCP / FastMCP: exposes tools to the LangGraph agent
+- Groq + ChatGroq: LLM used for agent reasoning and final answers
+- Tavily: web-search API
+- Hugging Face SentenceTransformer: local embeddings for RAG
+- ChromaDB: local vector database for RAG documents
+- FastAPI: web API between backend and frontend
+- SSE (Server-Sent Events): streams tool trace and assistant tokens
+- React + TypeScript + Vite + Tailwind CSS: frontend
+
+
+3. CONFIGURATION AND API KEYS
+-----------------------------
+The .env file stores private values and is ignored by Git.
+
+- GROQ_API_KEY
+  Used by the Groq LLM for agent reasoning and answer generation.
+
+- TAVILY_API_KEY
+  Used only by the web_search MCP tool.
+
+- EMBEDDING_MODEL
+  Default: sentence-transformers/all-MiniLM-L6-v2
+  This is a Hugging Face local embedding model. It does not use OpenAI credits.
+
+Weather does not require an API key:
+- Nominatim / OpenStreetMap converts a location name to latitude and longitude.
+- Open-Meteo returns current weather data for those coordinates.
+
+
+4. FIVE MCP TOOLS
+-----------------
+All tools are defined in mcp_servers/server.py.
+
+1) list_files(directory)
+   - Lists files and folders inside the safe ./data directory only.
+   - Prevents access outside ./data.
+   - Example: "List files in ./data/documents"
+
+2) get_weather(location)
+   - Uses Nominatim to find coordinates.
+   - Uses Open-Meteo to fetch current temperature, humidity, wind, and condition.
+   - Works with any city, for example Bangalore, Kanpur, Delhi, or Mumbai.
+
+3) web_search(query, max_results)
+   - Uses Tavily to search current public web information.
+   - Returns title, URL, snippet, and relevance score.
+
+4) rag_search(query, max_results)
+   - Searches internal documents stored in data/documents.
+   - Returns relevant chunks, source filename, and similarity score.
+
+5) scrape_url(url)
+   - Reads a valid public HTTP/HTTPS webpage.
+   - Extracts page title and readable main content.
+   - Blocks localhost URLs for safety.
+
+
+5. RAG IMPLEMENTATION
+---------------------
+Document folder:
+data/documents/
+
+Main RAG files:
+- rag/embeddings.py : loads the Hugging Face embedding model
+- rag/ingestion.py  : splits and stores documents in ChromaDB
+- rag/retriever.py  : finds relevant document chunks for a query
+
+RAG flow:
+
+Documents in data/documents
+        |
+        v
+ingestion.py splits text into chunks
+        |
+        v
+Hugging Face embedding model creates vectors locally
+        |
+        v
+ChromaDB stores vectors in chroma_db/
+        |
+        v
+rag_search retrieves relevant chunks, sources, and similarity scores
+
+Example:
+Question: "What is the annual leave policy?"
+Source: data/documents/employee_policy.txt
+Answer: Employees are entitled to 12 days of annual leave each year.
+
+
+6. LANGGRAPH STRUCTURE
+----------------------
+The LangGraph workflow is defined in graph.py.
+
+                    +--------------------+
+                    |       START        |
+                    +--------------------+
+                              |
+                              v
+                    +--------------------+
+                    |     agent node     |
+                    | Groq LLM decides   |
+                    | whether to use a   |
+                    | tool or answer     |
+                    +--------------------+
+                              |
+                 +------------+------------+
+                 |                         |
+      no tool calls found             tool call(s) found
+                 |                         |
+                 v                         v
+          +-------------+          +--------------------+
+          |     END     |          | ToolNode executes  |
+          +-------------+          | one or more MCP    |
+                                 | tools               |
+                                 +--------------------+
+                                           |
+                                           v
+                                 +--------------------+
+                                 |     agent node     |
+                                 | reads tool results |
+                                 | and creates final  |
+                                 | answer             |
+                                 +--------------------+
+                                           |
+                                           v
+                                        +-----+
+                                        | END |
+                                        +-----+
+
+Important graph behaviour:
+- The agent can answer directly when no tool is needed.
+- The agent can call one tool, for example get_weather.
+- The agent can chain tools, for example web_search followed by scrape_url.
+- Tool results are added to the message state before the agent creates the final answer.
+
+
+7. BACKEND API AND STREAMING
+----------------------------
+api.py provides a FastAPI endpoint:
+
+POST /api/chat
+
+The endpoint uses Server-Sent Events (SSE) to send updates to the frontend.
+
+SSE event types:
+- trace
+  Sent for analysis, tool selection, arguments, pending status, success, and errors.
+
+- assistant_delta
+  Sent token-by-token while the assistant is generating its final answer.
+
+- assistant_done
+  Sent when the streamed answer is complete. It includes source links.
+
+- assistant
+  Used when the response is not token-streamed, such as certain error cases.
+
+The API extracts source links only from real web_search and scrape_url tool
+results. The LLM is instructed not to invent source URLs.
+
+
+8. FRONTEND FEATURES
+--------------------
+The React frontend is in frontend/.
+
+Important components:
+- ChatPanel: chat conversation and example prompt buttons
+- InputBar: user message input and keyboard submission
+- MessageBubble: user/agent messages and clickable source links
+- AgentTracePanel: live observability panel for the current request
+- ToolStep: displays one agent/tool step
+- ToolResultViewer: expandable raw JSON and RAG source/score results
+- Sidebar: simple assignment-demo conversation sidebar
+
+Frontend displays:
+- User and assistant conversation
+- Streaming assistant text with a pulsing cursor
+- Agent analysis state
+- Selected MCP tool name
+- Tool arguments
+- Pending, success, error, and no-tool states
+- Tool latency
+- Expandable raw tool output
+- RAG filename and similarity score
+- Clickable tool-provided web sources
+
+
+9. ERROR HANDLING AND SAFETY
+----------------------------
+- Invalid directory paths show the real error message.
+- Filesystem tool allows only paths inside ./data.
+- Invalid URLs are rejected.
+- Local URLs such as localhost are blocked by the scraper.
+- Weather, web-search, and scraping timeouts are handled.
+- Tavily invalid-key and rate-limit errors are handled.
+- RAG can clearly report: "No relevant documents found for this query."
+- API errors are streamed to both the trace panel and the chat.
+- Credentials are stored in .env and excluded by .gitignore.
+
+
+10. LOGGING
+-----------
+logging_config.py writes application and tool logs to:
+
+logs/agent.log
+
+Logged events include:
+- Application start and stop
+- User request received
+- Tool name and safe tool arguments
+- Tool completion status
+- Agent/API errors
+
+Sensitive argument keys such as key, token, secret, and password are redacted.
+
+
+11. RUN COMMANDS
+----------------
+Start the backend from the project root:
+
+    .\.venv\Scripts\python.exe -m uvicorn api:app --reload --host 127.0.0.1 --port 8000
+
+Start the frontend from a second terminal:
+
+    cd frontend
+    npm.cmd run dev
+
+Then open the Vite URL, normally:
+
+    http://localhost:5173
+
+
+12. EXAMPLE QUESTIONS FOR DEMO
+------------------------------
+- List files in ./data/documents
+- What is the weather in Bangalore?
+- What is the annual leave policy?
+- Read https://example.com and tell me the title.
+- Search official LangGraph documentation for MCP integration.
+- Who is Virender Sehwag? Use official cricket sources.
+
