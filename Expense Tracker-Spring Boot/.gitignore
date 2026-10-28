@@ -1,0 +1,11 @@
+﻿.env
+**/.env
+**/.env.*
+!**/.env.example
+**/__pycache__/
+*.py[cod]
+**/.idea/
+**/.vscode/
+**/hs_err_pid*.log
+**/build/
+**/target/
